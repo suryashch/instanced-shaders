@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { PerformanceMonitor } from './utils/performanceMonitor.js';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -16,22 +17,8 @@ const scene = new THREE.Scene();
 const perspCamera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
 perspCamera.position.set(75,20,75);
 
-const orthoCamera = new THREE.OrthographicCamera(
-    window.innerWidth / - 2,
-    window.innerWidth / 2, 
-    window.innerHeight / 2, 
-    window.innerHeight / - 2, 
-    1, 
-    1000
-);
-
-// scene.add( orthoCamera );
-orthoCamera.position.set(75,20,75);
-orthoCamera.zoom = 10;
-orthoCamera.updateProjectionMatrix();
-
 const controls = new OrbitControls( perspCamera, renderer.domElement );
-controls.enablePan = true;
+controls.enablePan = false;
 controls.minDistance=0.1;
 controls.maxDistance=150;
 controls.minPolarAngle=0;
@@ -40,20 +27,18 @@ controls.autoRotate=false;
 controls.target = new THREE.Vector3( 0, 0, 0 );
 controls.rotateSpeed = 0.15;
 controls.zoomSpeed = 0.50;
-controls.panSpeed = 0.50;
 controls.update();
 
 const timer = new THREE.Timer();
 timer.connect( document );
 
-const ambientLight = new THREE.AmbientLight( 0xffffff, 1.5 ); // Color, Intensity
-scene.add( ambientLight );
-
-const gridHelper = new THREE.GridHelper( 100, 50, 0x444444, 0x444444 ); // ( size, divisions )
-gridHelper.position.set( 0, 0, 0 );
-scene.add( gridHelper );
-
 const perfMonitor = new PerformanceMonitor();
+
+const guiControls = {
+    wireframe: true,
+    darkMode: true,
+    oscillateColors: true
+}
 
 
 
@@ -71,9 +56,9 @@ const vertexShader = `
 
     void main() {
         v_Uv = uv;
-        v_InstanceColor = a_InstanceColor;
         v_Position = position;
         v_Normal = normal;
+        v_InstanceColor = a_InstanceColor;
 
         vec4 instancedPos = instanceMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * modelViewMatrix * instancedPos;
@@ -82,7 +67,6 @@ const vertexShader = `
 
 const fragmentShader = `
     uniform float u_Time;
-    uniform vec2 u_Resolution;
 
     varying vec2 v_Uv;
     varying vec3 v_InstanceColor;
@@ -90,10 +74,11 @@ const fragmentShader = `
     varying vec3 v_Normal;
 
     void main() {
-        vec2 st = gl_FragCoord.xy / u_Resolution;
+        
         vec3 viewDirection = normalize(cameraPosition - v_Position);
         float fresnel = dot(viewDirection, v_Normal);
-        gl_FragColor = vec4((v_InstanceColor * fresnel ), 1.0);
+        
+        gl_FragColor = vec4(vec3(abs(cos(v_InstanceColor + u_Time)) * fresnel ), 1.0);
     }
 `
 
@@ -105,23 +90,13 @@ const fragmentShader = `
 
 const geometry = new THREE.IcosahedronGeometry( 5, 1 );
 
-// const material = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true });
-
 const material = new THREE.ShaderMaterial({
-    uniforms: {
-        u_Resolution: {
-            value: [ window.innerWidth, window.innerHeight ]
-        },
-        u_Time : {
-            value: 0.0
-        }
-    },
     vertexShader,
     fragmentShader,
     wireframe: true
 });
 
-
+material.uniforms.u_Time = {value: 0.0};
 
 
 
@@ -135,7 +110,7 @@ const instancedColors = [
     new THREE.Color(0xff00ff)  // Magenta
 ];
 
-const nInstances = 1000;
+const nInstances = 100;
 let instColor;
 
 const instancedColorsArray = new Float32Array(nInstances * 3);
@@ -157,9 +132,9 @@ scene.add( instancedMesh );
 
 for (let i = 0; i<nInstances; i++){
     dummy.position.set(
-        Math.round((Math.random() - 0.5) * 1000 + 50 ),
-        Math.round((Math.random() - 0.5) * 1000 + 50 ),
-        Math.round((Math.random() - 0.5) * 1000 + 50 )
+        Math.round((Math.random() - 0.5) * 200 + 10 ),
+        Math.round((Math.random() - 0.5) * 200 + 10 ),
+        Math.round((Math.random() - 0.5) * 200 + 10 )
     );
     
     dummy.updateMatrixWorld();
@@ -167,13 +142,38 @@ for (let i = 0; i<nInstances; i++){
     instancedMesh.setMatrixAt( i, dummy.matrix);
 };
 
-console.log(instancedMesh);
-
-// const mesh = new THREE.Mesh( geometry, material );
-// scene.add( mesh );
 
 
-window.addEventListener()
+function configGUI() {
+
+    const gui = new GUI();
+    
+    gui.add(guiControls, "wireframe").name("wireframe").onChange( v => {
+        material.wireframe = v;
+    });
+    
+    gui.add(guiControls, "darkMode").name("darkMode").onChange( v => {
+        const renderBackgroundColor = v ? "#272727" : "#8f8f8f";
+        renderer.setClearColor(renderBackgroundColor)
+    });
+
+    gui.add(guiControls, "oscillateColors").name("changeColors").onChange( v => {
+        guiControls.oscillateColors = v;
+    });
+
+}
+
+
+window.addEventListener( 'resize', onWindowResize );
+
+function onWindowResize() {
+
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize( window.innerWidth, window.innerHeight );
+
+}
 
 
 // // Animate function
@@ -185,9 +185,13 @@ function animate() {
     renderer.render( scene, perspCamera );
 
     timer.update();
-    material.uniforms.u_Time.value = timer.getElapsed();
+    
+    if (guiControls.oscillateColors) {
+        material.uniforms.u_Time.value = timer.getElapsed();
+    }
 
     perfMonitor.update(renderer, scene);
 };
 
+configGUI();
 animate();
