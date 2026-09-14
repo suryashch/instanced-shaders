@@ -4,3 +4,5 @@ Shader material enables programming in GLSL within three.js. In this example, we
 
 
 
+
+Inspiration from [Visionary 3D YouTube channel](https://www.youtube.com/@visionary_3_d).
