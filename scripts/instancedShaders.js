@@ -18,6 +18,7 @@ const perspCamera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.
 perspCamera.position.set(75,20,75);
 
 const controls = new OrbitControls( perspCamera, renderer.domElement );
+controls.enagleDamping = true;
 controls.enablePan = false;
 controls.minDistance=0.1;
 controls.maxDistance=150;
@@ -49,13 +50,11 @@ const vertexShader = `
 
     uniform float u_Time;
 
-    varying vec2 v_Uv;
     varying vec3 v_InstanceColor;
     varying vec3 v_Position;
     varying vec3 v_Normal;
 
     void main() {
-        v_Uv = uv;
         v_Position = position;
         v_Normal = normal;
         v_InstanceColor = a_InstanceColor;
@@ -78,12 +77,9 @@ const fragmentShader = `
         vec3 viewDirection = normalize(cameraPosition - v_Position);
         float fresnel = dot(viewDirection, v_Normal);
         
-        gl_FragColor = vec4(vec3(abs(cos(v_InstanceColor + u_Time)) * fresnel ), 1.0);
+        gl_FragColor = vec4(vec3( fresnel * abs(cos( v_InstanceColor + u_Time )) ), 1.0);
     }
 `
-
-
-
 
 
 // // Raw Geometry Declaration
@@ -113,17 +109,17 @@ const instancedColors = [
 const nInstances = 100;
 let instColor;
 
-const instancedColorsArray = new Float32Array(nInstances * 3);
+const colorsArray = new Float32Array( nInstances * 3 );
 
 for (let i = 0; i < nInstances; i++) {
     instColor = instancedColors[ Math.floor(Math.random() * 10 / 2) ];
 
-    instancedColorsArray[i * 3 + 0] = instColor.r
-    instancedColorsArray[i * 3 + 1] = instColor.g
-    instancedColorsArray[i * 3 + 2] = instColor.b
+    colorsArray[i * 3 + 0] = instColor.r
+    colorsArray[i * 3 + 1] = instColor.g
+    colorsArray[i * 3 + 2] = instColor.b
 };
 
-geometry.setAttribute('a_InstanceColor', new THREE.InstancedBufferAttribute(instancedColorsArray, 3)); // The 3 is the stride size
+geometry.setAttribute('a_InstanceColor', new THREE.InstancedBufferAttribute( colorsArray, 3 )); // The 3 is the stride size
 
 let dummy = new THREE.Object3D();
 const instancedMesh = new THREE.InstancedMesh( geometry, material, nInstances );
@@ -132,14 +128,14 @@ scene.add( instancedMesh );
 
 for (let i = 0; i<nInstances; i++){
     dummy.position.set(
-        Math.round((Math.random() - 0.5) * 200 + 10 ),
-        Math.round((Math.random() - 0.5) * 200 + 10 ),
-        Math.round((Math.random() - 0.5) * 200 + 10 )
+        Math.round(( Math.random() - 0.5) * 200 + 10 ),
+        Math.round(( Math.random() - 0.5) * 200 + 10 ),
+        Math.round(( Math.random() - 0.5) * 200 + 10 )
     );
     
     dummy.updateMatrixWorld();
     
-    instancedMesh.setMatrixAt( i, dummy.matrix);
+    instancedMesh.setMatrixAt( i, dummy.matrix );
 };
 
 
