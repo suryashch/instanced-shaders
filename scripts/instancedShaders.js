@@ -106,7 +106,7 @@ const instancedColors = [
     new THREE.Color(0xff00ff)  // Magenta
 ];
 
-const nInstances = 100;
+const nInstances = 1000;
 let instColor;
 
 const colorsArray = new Float32Array( nInstances * 3 );
@@ -128,9 +128,9 @@ scene.add( instancedMesh );
 
 for (let i = 0; i<nInstances; i++){
     dummy.position.set(
-        Math.round(( Math.random() - 0.5) * 200 + 10 ),
-        Math.round(( Math.random() - 0.5) * 200 + 10 ),
-        Math.round(( Math.random() - 0.5) * 200 + 10 )
+        Math.round(( Math.random() - 0.5) * 1000 ),
+        Math.round(( Math.random() - 0.5) * 1000 ),
+        Math.round(( Math.random() - 0.5) * 1000 )
     );
     
     dummy.updateMatrixWorld();
